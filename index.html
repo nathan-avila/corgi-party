@@ -93,9 +93,24 @@
       height: 0;
       border: none;
     }
+    #noticeBanner {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      background: rgba(0, 0, 0, 0.8);
+      color: #fff;
+      text-align: center;
+      padding: 8px;
+      font-size: 14px;
+      display: none;
+      z-index: 10000;
+    }
   </style>
 </head>
 <body>
+  <div id="noticeBanner">This party isn't saved on this device. <button id="saveLocal" style="border:1px solid #fff;background:transparent;color:#fff;padding:3px 8px;cursor:pointer;">Save for this browser</button></div>
+
   <button id="toggleMenu">▲</button>
   <button id="muteBtn">🔇</button>
   <div id="menu">
@@ -188,43 +203,47 @@
       });
     }
 
-    function loadFromURL() {
-      const params = new URLSearchParams(window.location.search);
-      const bg = params.get('bg');
-      const fg = params.get('fg');
-      const yt = params.get('yt');
-      const menu = document.getElementById('menu');
-      if (bg) {
-        document.body.style.backgroundImage = `url(${bg})`;
-        document.body.style.backgroundRepeat = 'repeat';
-        document.body.style.backgroundSize = 'auto';
-      }
-      if (fg) gifURL = fg;
-      if (yt) startYouTube(yt);
-      resetScene();
-      if (bg || fg || yt) menu.classList.add('hidden');
-    }
-
     async function shareParty() {
       const bgFile = document.getElementById('bgUpload').files[0];
       const fgFile = document.getElementById('fgUpload').files[0];
       const yt = document.getElementById('ytLink').value.trim();
-      const params = new URLSearchParams();
-      if (bgFile) {
-        const bgBase64 = await fileToBase64(bgFile);
-        params.set('bg', bgBase64);
-      }
-      if (fgFile) {
-        const fgBase64 = await fileToBase64(fgFile);
-        params.set('fg', fgBase64);
-      }
-      if (yt) params.set('yt', yt);
-      const shareURL = `${window.location.origin}${window.location.pathname}?${params.toString()}`;
+      const id = Math.random().toString(36).substring(2, 8);
+
+      const data = {};
+      if (bgFile) data.bg = await fileToBase64(bgFile);
+      if (fgFile) data.fg = await fileToBase64(fgFile);
+      if (yt) data.yt = yt;
+
+      localStorage.setItem(`party_${id}`, JSON.stringify(data));
+      const shareURL = `${window.location.origin}${window.location.pathname}?party=${id}`;
       navigator.clipboard.writeText(shareURL).then(() => {
         const notice = document.getElementById('shareNotice');
         notice.style.display = 'inline';
         setTimeout(() => notice.style.display = 'none', 2000);
       });
+    }
+
+    function loadPartyFromID(id) {
+      const data = JSON.parse(localStorage.getItem(`party_${id}`) || 'null');
+      if (!data) {
+        const banner = document.getElementById('noticeBanner');
+        banner.style.display = 'block';
+        document.getElementById('saveLocal').onclick = () => {
+          localStorage.setItem(`party_${id}`, JSON.stringify(window.currentParty));
+          banner.style.display = 'none';
+        };
+        return;
+      }
+
+      if (data.bg) {
+        document.body.style.backgroundImage = `url(${data.bg})`;
+        document.body.style.backgroundRepeat = 'repeat';
+        document.body.style.backgroundSize = 'auto';
+      }
+      if (data.fg) gifURL = data.fg;
+      if (data.yt) startYouTube(data.yt);
+      resetScene();
+      document.getElementById('menu').classList.add('hidden');
     }
 
     document.addEventListener('mousemove', showToggle);
@@ -234,12 +253,15 @@
       const bgFile = document.getElementById('bgUpload').files[0];
       const fgFile = document.getElementById('fgUpload').files[0];
       const yt = document.getElementById('ytLink').value;
+      window.currentParty = {};
+
       if (bgFile) {
         const reader = new FileReader();
         reader.onload = (event) => {
           document.body.style.backgroundImage = `url(${event.target.result})`;
           document.body.style.backgroundRepeat = 'repeat';
           document.body.style.backgroundSize = 'auto';
+          window.currentParty.bg = event.target.result;
         };
         reader.readAsDataURL(bgFile);
       }
@@ -247,11 +269,15 @@
         const reader = new FileReader();
         reader.onload = (event) => {
           gifURL = event.target.result;
+          window.currentParty.fg = event.target.result;
           resetScene();
         };
         reader.readAsDataURL(fgFile);
       }
-      if (yt) startYouTube(yt);
+      if (yt) {
+        startYouTube(yt);
+        window.currentParty.yt = yt;
+      }
     });
 
     document.getElementById('shareParty').addEventListener('click', shareParty);
@@ -263,9 +289,12 @@
     });
     document.getElementById('muteBtn').addEventListener('click', toggleMute);
 
+    const params = new URLSearchParams(window.location.search);
+    const partyID = params.get('party');
+    if (partyID) loadPartyFromID(partyID);
+
     spawnCorgis();
     animate();
-    loadFromURL();
     showToggle();
   </script>
 </body>
