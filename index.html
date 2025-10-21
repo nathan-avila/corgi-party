@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Corgi Party!</title>
+  <style>
+    html, body {
+      margin: 0;
+      overflow: hidden;
+      background-color: #ffb6c1;
+      height: 100%;
+      width: 100%;
+      user-select: none;
+      font-family: 'Comic Sans MS', cursive;
+    }
+    img.corgi {
+      position: absolute;
+      width: 100px;
+      height: auto;
+      pointer-events: none;
+    }
+    #menu {
+      position: fixed;
+      bottom: 0;
+      width: 100%;
+      background: rgba(255, 255, 255, 0.9);
+      color: #333;
+      text-align: center;
+      padding: 10px 0;
+      font-size: 16px;
+      box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.2);
+      transition: transform 0.4s ease;
+    }
+    #menu.hidden {
+      transform: translateY(100%);
+    }
+    #menu input[type="file"], #menu input[type="text"] {
+      margin: 5px;
+      padding: 6px;
+      border: 2px solid #ff69b4;
+      border-radius: 10px;
+      background-color: #fff0f5;
+    }
+    #menu button {
+      margin: 5px;
+      padding: 8px 14px;
+      border: none;
+      background-color: #ff69b4;
+      color: white;
+      border-radius: 10px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    #menu button:hover {
+      background-color: #ff1493;
+    }
+    #toggleMenu {
+      position: fixed;
+      bottom: 0;
+      right: 10px;
+      background: #ff69b4;
+      color: white;
+      border: none;
+      border-radius: 50%;
+      width: 50px;
+      height: 50px;
+      font-size: 24px;
+      cursor: pointer;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+      z-index: 9999;
+      opacity: 1;
+      transition: opacity 0.6s ease;
+    }
+    #toggleMenu:hover {
+      background: #ff1493;
+    }
+    #toggleMenu.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+    #youtube-player {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <button id="toggleMenu">⬆️</button>
+  <div id="menu">
+    <strong>🎉 Make Your Own Corgi Party 🎉</strong><br>
+    Background: <input type="file" id="bgUpload" accept="image/*">
+    Foreground: <input type="file" id="fgUpload" accept="image/*">
+    YouTube Music Link: <input type="text" id="ytLink" placeholder="https://www.youtube.com/watch?v=..." size="35">
+    <button id="startParty">Start Party!</button>
+  </div>
+
+  <div id="youtube-player"></div>
+
+  <script>
+    const gifDefault = "https://media.tenor.com/0bwjzBYZZOIAAAAi/corgi.gif";
+    let gifURL = gifDefault;
+    const corgis = [];
+    const numCorgis = 15;
+    let hideTimeout;
+
+    function spawnCorgis() {
+      for (let i = 0; i < numCorgis; i++) {
+        const img = document.createElement('img');
+        img.src = gifURL;
+        img.className = 'corgi';
+        img.style.left = Math.random() * window.innerWidth + 'px';
+        img.style.top = Math.random() * window.innerHeight + 'px';
+        document.body.appendChild(img);
+
+        corgis.push({
+          el: img,
+          dx: (Math.random() - 0.5) * 6,
+          dy: (Math.random() - 0.5) * 6
+        });
+      }
+    }
+
+    function animate() {
+      corgis.forEach(corgi => {
+        let x = parseFloat(corgi.el.style.left);
+        let y = parseFloat(corgi.el.style.top);
+
+        x += corgi.dx;
+        y += corgi.dy;
+
+        if (x < 0 || x > window.innerWidth - 100) corgi.dx *= -1;
+        if (y < 0 || y > window.innerHeight - 100) corgi.dy *= -1;
+
+        corgi.el.style.left = x + 'px';
+        corgi.el.style.top = y + 'px';
+      });
+      requestAnimationFrame(animate);
+    }
+
+    function resetScene() {
+      corgis.forEach(corgi => corgi.el.remove());
+      corgis.length = 0;
+      spawnCorgis();
+    }
+
+    function startYouTube(link) {
+      const match = link.match(/[?&]v=([^&]+)/);
+      if (!match) return;
+      const videoId = match[1];
+      const playerDiv = document.getElementById('youtube-player');
+      playerDiv.innerHTML = `<iframe width="0" height="0" src="https://www.youtube.com/embed/${videoId}?autoplay=1&loop=1&playlist=${videoId}" frameborder="0"></iframe>`;
+    }
+
+    function showToggle() {
+      const button = document.getElementById('toggleMenu');
+      button.classList.remove('hidden');
+      clearTimeout(hideTimeout);
+      hideTimeout = setTimeout(() => {
+        button.classList.add('hidden');
+      }, 4000);
+    }
+
+    document.addEventListener('mousemove', showToggle);
+    document.addEventListener('touchstart', showToggle);
+
+    document.getElementById('bgUpload').addEventListener('change', function (e) {
+      const file = e.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          document.body.style.backgroundImage = `url(${event.target.result})`;
+          document.body.style.backgroundSize = 'cover';
+          document.body.style.backgroundPosition = 'center';
+        };
+        reader.readAsDataURL(file);
+      }
+    });
+
+    document.getElementById('fgUpload').addEventListener('change', function (e) {
+      const file = e.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          gifURL = event.target.result;
+          resetScene();
+        };
+        reader.readAsDataURL(file);
+      }
+    });
+
+    document.getElementById('startParty').addEventListener('click', function () {
+      const ytLink = document.getElementById('ytLink').value;
+      if (ytLink) startYouTube(ytLink);
+      resetScene();
+    });
+
+    document.getElementById('toggleMenu').addEventListener('click', function () {
+      const menu = document.getElementById('menu');
+      menu.classList.toggle('hidden');
+      this.textContent = menu.classList.contains('hidden') ? '⬆️' : '⬇️';
+      showToggle();
+    });
+
+    spawnCorgis();
+    animate();
+
+    document.addEventListener('click', (e) => {
+      const img = document.createElement('img');
+      img.src = gifURL;
+      img.className = 'corgi';
+      img.style.left = e.clientX + 'px';
+      img.style.top = e.clientY + 'px';
+      document.body.appendChild(img);
+
+      corgis.push({ el: img, dx: (Math.random() - 0.5) * 6, dy: (Math.random() - 0.5) * 6 });
+    });
+
+    showToggle();
+  </script>
+</body>
+</html>
