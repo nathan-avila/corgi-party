@@ -13,6 +13,8 @@
       width: 100%;
       user-select: none;
       font-family: 'Comic Sans MS', cursive;
+      background-repeat: repeat;
+      background-size: auto;
     }
     img.corgi {
       position: absolute;
@@ -30,10 +32,11 @@
       padding: 10px 0;
       font-size: 16px;
       box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.2);
-      transition: transform 0.4s ease;
+      transition: transform 0.4s ease, opacity 0.4s ease;
     }
     #menu.hidden {
       transform: translateY(100%);
+      opacity: 0;
     }
     #menu input[type="file"], #menu input[type="text"] {
       margin: 5px;
@@ -55,7 +58,7 @@
     #menu button:hover {
       background-color: #ff1493;
     }
-    #toggleMenu {
+    #toggleMenu, #muteBtn {
       position: fixed;
       bottom: 0;
       right: 10px;
@@ -72,20 +75,26 @@
       opacity: 1;
       transition: opacity 0.6s ease;
     }
-    #toggleMenu:hover {
+    #toggleMenu:hover, #muteBtn:hover {
       background: #ff1493;
     }
-    #toggleMenu.hidden {
+    #toggleMenu.hidden, #muteBtn.hidden {
       opacity: 0;
       pointer-events: none;
     }
-    #youtube-player {
-      display: none;
+    #muteBtn {
+      right: 70px;
+    }
+    #youtube-player iframe {
+      width: 0;
+      height: 0;
+      border: none;
     }
   </style>
 </head>
 <body>
   <button id="toggleMenu">⬆️</button>
+  <button id="muteBtn">🔇</button>
   <div id="menu">
     <strong>🎉 Make Your Own Corgi Party 🎉</strong><br>
     Background: <input type="file" id="bgUpload" accept="image/*">
@@ -102,6 +111,8 @@
     const corgis = [];
     const numCorgis = 15;
     let hideTimeout;
+    let youtubeIframe = null;
+    let isMuted = false;
 
     function spawnCorgis() {
       for (let i = 0; i < numCorgis; i++) {
@@ -148,15 +159,24 @@
       if (!match) return;
       const videoId = match[1];
       const playerDiv = document.getElementById('youtube-player');
-      playerDiv.innerHTML = `<iframe width="0" height="0" src="https://www.youtube.com/embed/${videoId}?autoplay=1&loop=1&playlist=${videoId}" frameborder="0"></iframe>`;
+      playerDiv.innerHTML = `<iframe id="ytFrame" src="https://www.youtube.com/embed/${videoId}?autoplay=1&loop=1&playlist=${videoId}&enablejsapi=1" allow="autoplay"></iframe>`;
+      youtubeIframe = playerDiv.querySelector('iframe');
+    }
+
+    function toggleMute() {
+      if (!youtubeIframe) return;
+      const message = isMuted ? 'unMute' : 'mute';
+      youtubeIframe.contentWindow.postMessage(JSON.stringify({ event: 'command', func: message, args: [] }), '*');
+      isMuted = !isMuted;
+      document.getElementById('muteBtn').textContent = isMuted ? '🔈' : '🔇';
     }
 
     function showToggle() {
-      const button = document.getElementById('toggleMenu');
-      button.classList.remove('hidden');
+      const buttons = [document.getElementById('toggleMenu'), document.getElementById('muteBtn')];
+      buttons.forEach(btn => btn.classList.remove('hidden'));
       clearTimeout(hideTimeout);
       hideTimeout = setTimeout(() => {
-        button.classList.add('hidden');
+        buttons.forEach(btn => btn.classList.add('hidden'));
       }, 4000);
     }
 
@@ -169,8 +189,8 @@
         const reader = new FileReader();
         reader.onload = (event) => {
           document.body.style.backgroundImage = `url(${event.target.result})`;
-          document.body.style.backgroundSize = 'cover';
-          document.body.style.backgroundPosition = 'center';
+          document.body.style.backgroundRepeat = 'repeat';
+          document.body.style.backgroundSize = 'auto';
         };
         reader.readAsDataURL(file);
       }
@@ -200,6 +220,8 @@
       this.textContent = menu.classList.contains('hidden') ? '⬆️' : '⬇️';
       showToggle();
     });
+
+    document.getElementById('muteBtn').addEventListener('click', toggleMute);
 
     spawnCorgis();
     animate();
